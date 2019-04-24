@@ -2,11 +2,15 @@ import{CST} from "../CST";
 
 export class PlayScene extends Phaser.Scene{
   
-    anna! : Phaser.GameObjects.Sprite;
-    hooded!: Phaser.GameObjects.Sprite;
+    anna! : Phaser.Physics.Arcade.Sprite;
+    hooded!: Phaser.Physics.Arcade.Sprite;
     keyboard!: {[index: string]: Phaser.Input.Keyboard.Key};
+    assassins!: Phaser.Physics.Arcade.Group;
+    fireAttacks!: Phaser.Physics.Arcade.Group;
     constructor(){
-        super({key:CST.SCENES.PLAY})
+        super({
+            key:CST.SCENES.PLAY,
+        });
     }
 
     preload(){
@@ -57,18 +61,88 @@ export class PlayScene extends Phaser.Scene{
         this.textures.addSpriteSheetFromAtlas("hooded",{frameHeight:64, frameWidth: 64, atlas: "characters", frame: "hooded"})
     }
     create(){
-        let anna: Phaser.GameObjects.Sprite = this.add.sprite(400,400,"anna",26).setScale(2);
-        let hooded: Phaser.GameObjects.Sprite = this.add.sprite(200,200, "hooded",26).setScale(2);
+        this.anna = this.physics.add.sprite(400,400,"anna",26).setScale(2);
+        this.hooded = this.physics.add.sprite(200,200, "hooded",26).setScale(2).setImmovable(true);
+        this.fireAttacks = this.physics.add.group();
+        this.assassins = this.physics.add.group({immovable: true});
+        this.assassins.add(this.hooded);
         window.hooded = this.hooded;
         window.anna = this.anna;
 
+        this.anna.setSize(40,50).setOffset(10,10);
+        this.anna.setCollideWorldBounds(true);
         this.keyboard = this.input.keyboard.addKeys("W, A, S, D");
+        this.input.on("pointermove",(pointer: Phaser.Input.Pointer)=>{
+            if(pointer.isDown){
+                let fire = this.add.sprite(pointer.x , pointer.y, "daze", "fire00.png").play("blaze");
+                this.fireAttacks.add(fire);
+                fire.on("animationcomplete", ()=>{
+                    fire.destroy();
+                })
+            }
+        });
+        this.physics.world.addCollider(this.anna, this.assassins, (anna:Phaser.Physics.Arcade.Sprite, hooded:Phaser.Physics.Arcade.Sprite)=>{
+            anna.destroy();
+            hooded.destroy();
+        });
+        this.physics.world.addCollider(this.fireAttacks, this.assassins, (fireAttacks:Phaser.Physics.Arcade.Sprite, hooded:Phaser.Physics.Arcade.Sprite)=>{
+            fireAttacks.destroy();
+            hooded.destroy();
+            
+            let x = 0;
+            let y = 0;
+            switch(Phaser.Math.Between(0,1)){
+                case 0: x = Phaser.Math.Between(0, this.game.renderer.width);
+                  break;
+                case 1: y = Phaser.Math.Between(0,this.game.renderer.height);
+            }
+            for(let i =0 ;i<2;i++){
+                this.assassins.add(this.physics.add.sprite(x,y, "hooded",26).setScale(2).setImmovable(true));
+            }
+        });
     }
 
     update(time:number, delta: number){
-        if(this.keyboard.D.isDown === true){
-            this.anna.x = this.anna.x +  64 * (delta/1000);
-            this.anna.play("right", true);
+
+        for(let i=0; i<this.assassins.getChildren().length; i++){
+            this.physics.accelerateToObject(this.assassins.getChildren()[i], this.anna);     
         }
+       
+
+        if(this.anna.active === true){
+            if(this.keyboard.D.isDown === true){
+                this.anna.setVelocityX(128);
+            }
+            if(this.keyboard.W.isDown === true){
+                this.anna.setVelocityY(-128);
+            }
+            if(this.keyboard.S.isDown === true){
+                this.anna.setVelocityY(128);
+            }
+            if(this.keyboard.A.isDown === true){
+                this.anna.setVelocityX(-128);
+            } 
+            if(this.keyboard.A.isUp && this.keyboard.D.isUp){       //not moving on X axis
+                this.anna.setVelocityX(0);
+            }
+            if(this.keyboard.W.isUp && this.keyboard.S.isUp){       //not moving on X axis
+                this.anna.setVelocityY(0);
+            }
+            
+
+            if(this.anna.body.velocity.x>0){
+                this.anna.play("right",true);
+            }
+            else if(this.anna.body.velocity.x <0){
+                this.anna.anims.playReverse("left",true);
+            }
+            else if(this.anna.body.velocity.y <0){
+                this.anna.play("up", true);
+            }
+            else if(this.anna.body.velocity.y >0){    
+                this.anna.play("down", true);
+            }
+        }
+        
     }
 }
