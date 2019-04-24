@@ -70,10 +70,5 @@ export class PlayScene extends Phaser.Scene{
             this.anna.x = this.anna.x +  64 * (delta/1000);
             this.anna.play("right", true);
         }
-
-        if(this.keyboard.A.isDown === true){
-            this.anna.x += -64 * (delta/1000);
-            this.anna.play("left",true);
-        }
     }
 }
